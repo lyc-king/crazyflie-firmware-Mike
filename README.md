@@ -135,18 +135,20 @@ and proceed again.
 * My code compiles normally, but after make cload burning, the M2 blue LED light is always on and it cannot restart normally.
 
   Possible reason: the name of the variable is too long, shorten it.
-  Wrong version: 'PARAM_ADD(PARAM_FLOAT, controlmode, &Gimbal2D_P.ControlMode)'
-  Doable version: 'PARAM_ADD(PARAM_FLOAT, cmode, &Gimbal2D_P.ControlMode)'
+  Wrong version: 
+  ```PARAM_ADD(PARAM_FLOAT, controlmode, &Gimbal2D_P.ControlMode)```
+  Doable version:
+  ```PARAM_ADD(PARAM_FLOAT, cmode, &Gimbal2D_P.ControlMode)```
   
 * During compilation, some errors occur in sub-modules such as FreeRTOS and CMSIS...
 
-  add '--recursive' while doing git clone, or do
-  'git submodule init' and 'git submodule update' after cloning.
+  add ```--recursive``` while doing git clone, or do
+  ```git submodule init``` and ```git submodule update``` after cloning.
 
 * How can I fix the Git error "object file ... is empty"?
   Try this:
-  'find .git/objects/ -type f -empty | xargs rm'
-  'git fetch -p'
-  'git fsck --full'
+  ```find .git/objects/ -type f -empty | xargs rm```
+  ```git fetch -p```
+  ```git fsck --full```
 
 
