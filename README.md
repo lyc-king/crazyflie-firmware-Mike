@@ -142,14 +142,14 @@ Doable version:
   
 * During compilation, some errors occur in sub-modules such as FreeRTOS and CMSIS...  
 
-add ```--recursive``` while doing git clone, or do
+add ```--recursive``` while doing git clone,  or do  
 ```git submodule init```  and  ```git submodule update``` after cloning.
 
 * How can I fix the Git error "object file ... is empty"?  
 
 Try this:  
-```find .git/objects/ -type f -empty | xargs rm```
-```git fetch -p```
-```git fsck --full```
+```find .git/objects/ -type f -empty | xargs rm```  
+```git fetch -p```  
+```git fsck --full```  
 
 
