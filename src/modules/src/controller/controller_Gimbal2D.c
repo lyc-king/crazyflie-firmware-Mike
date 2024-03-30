@@ -262,6 +262,24 @@ void controllerGimbal2DInit(void) {
   isInit = true;
 }
 
+void Gimbal2D_reset_state()
+{
+  Gimbal2D_Y_Type *Y = &Gimbal2D_Y;
+  Gimbal2D_P_Type *P = &Gimbal2D_P;
+  Y->acount_prev = 0.0F;
+  Y->bcount_prev = 0.0F;
+  Y->u_alpha = 0.0F;
+  Y->u_beta = 0.0F;
+  Y->z1 = 0.0F;
+  Y->z2 = 0.0F;
+  Y->z3 = 0.0F;
+  Y->z4 = 0.0F;
+  pidReset(&P->alphaPID);
+  pidReset(&P->alphasPID);
+  pidReset(&P->betaPID);
+  pidReset(&P->betasPID);
+}
+
 void Gimbal2D_AlphaBetaEstimator()
 {
   // rotation about z for 90 deg
@@ -318,8 +336,7 @@ void Gimbal2D_AlphaBetaEstimator()
 
   if(Gimbal2D_U.ClampedThrust >= 0.000898f && Gimbal2D_U.LastThrust <= 0.000898f)
   {
-    Gimbal2D_Y.acount_prev = 0.0F;
-    Gimbal2D_Y.bcount_prev = 0.0F;
+    Gimbal2D_reset_state();
   }
 
   float diff_a = Gimbal2D_Y.alpha_prev - alpha0_e;
