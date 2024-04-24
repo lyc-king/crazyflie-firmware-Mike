@@ -228,6 +228,7 @@ void controllerGimbal2DInit(void) {
   {
     case GIMBAL2D_CONTROLMODE_PID:
     case GIMBAL2D_CONTROLMODE_PID_JALPHA:
+    case GIMBAL2D_CONTROLMODE_NSF: // pid_nsf_method
         pidInit(&Gimbal2D_P.alphaPID,  0, Gimbal2D_P.alphaPID.kp,  Gimbal2D_P.alphaPID.ki,  Gimbal2D_P.alphaPID.kd,
             Gimbal2D_P.alphaPID.kff,  GIMBAL2D_ATTITUDE_UPDATE_DT, ATTITUDE_RATE, 0, 0);
         pidInit(&Gimbal2D_P.alphasPID,  0, Gimbal2D_P.alphasPID.kp,  Gimbal2D_P.alphasPID.ki,  Gimbal2D_P.alphasPID.kd,
@@ -241,15 +242,15 @@ void controllerGimbal2DInit(void) {
         Gimbal2D_P.OFL_k1 = -1.0f * Gimbal2D_P.OFL_Lambda1 * Gimbal2D_P.OFL_Lambda2;
         Gimbal2D_P.OFL_k2 = Gimbal2D_P.OFL_Lambda1 + Gimbal2D_P.OFL_Lambda2;
         break;
-    case GIMBAL2D_CONTROLMODE_NSF: 
-        Gimbal2D_P.NSF_K[0][0] = 1000.0f;
-        Gimbal2D_P.NSF_K[0][1] = 0.0f;
-        Gimbal2D_P.NSF_K[0][2] = 109.5f;
-        Gimbal2D_P.NSF_K[0][3] = 0.0f;
-        Gimbal2D_P.NSF_K[1][0] = 0.0f;
-        Gimbal2D_P.NSF_K[1][1] = 1000.0f;
-        Gimbal2D_P.NSF_K[1][2] = 0.0f;
-        Gimbal2D_P.NSF_K[1][3] = 109.5f;
+    // case GIMBAL2D_CONTROLMODE_NSF: // nsf_method
+    //     Gimbal2D_P.NSF_K[0][0] = 1000.0f;
+    //     Gimbal2D_P.NSF_K[0][1] = 0.0f;
+    //     Gimbal2D_P.NSF_K[0][2] = 109.5f;
+    //     Gimbal2D_P.NSF_K[0][3] = 0.0f;
+    //     Gimbal2D_P.NSF_K[1][0] = 0.0f;
+    //     Gimbal2D_P.NSF_K[1][1] = 1000.0f;
+    //     Gimbal2D_P.NSF_K[1][2] = 0.0f;
+    //     Gimbal2D_P.NSF_K[1][3] = 109.5f;
         break;
     case GIMBAL2D_CONTROLMODE_PWMTEST:
         Gimbal2D_P.PWMTest[0] = 0;
@@ -454,7 +455,7 @@ void Gimbal2D_controller_ofl()
   Gimbal2D_Y.Tau_z =(u_tilt1 * sinf(Y->beta_e) - u_tilt2 * tanf(Y->alpha_e)) / (cosf(Y->beta_e) + sinf(Y->beta_e));
 }
 
-void Gimbal2D_controller_nsf()
+void Gimbal2D_controller_nsf() // Not used in Low-level Control
 {
   // Update your control law here
   // NSF Controller -- State Feedback
@@ -469,7 +470,7 @@ void Gimbal2D_controller_nsf()
   Y->z4 = Y->beta_speed_e - U->betas_desired;
 
   float num1 = ((JX + JY - JZ)*sinf(Y->beta_e) -JZ*cosf(Y->beta_e))*Y->z3*Y->z4;
-  float den1 = JX*cosf(Y->beta_e) + JY*sinf(Y->beta_e);
+  float den1 = JX*cosf(Y->beta_e) + JZ*sinf(Y->beta_e);
   float cir1 = num1 / den1;
   float num2 = (JZ - JX)*sinf(Y->beta_e)*cosf(Y->beta_e)*Y->z3*Y->z3;
   float den2 = JY;
@@ -487,6 +488,56 @@ void Gimbal2D_controller_nsf()
   Y->Tau_x = (cosf(Y->beta_e)*Y->u_u1 + tanf(Y->alpha_e)*Y->u_u2)/(sinf(Y->beta_e)+cosf(Y->beta_e));
   Y->Tau_y = Y->u_u2;
   Y->Tau_z = (sinf(Y->beta_e)*Y->u_u1 - tanf(Y->alpha_e)*Y->u_u2)/(sinf(Y->beta_e)+cosf(Y->beta_e));
+}
+
+void Gimbal2D_controller_pid_nsf()
+{
+  Gimbal2D_U_Type *U = &Gimbal2D_U;
+  Gimbal2D_Y_Type *Y = &Gimbal2D_Y;
+  Y->UsingControlMode = GIMBAL2D_CONTROLMODE_NSF;
+
+  float alphas_desired_pid;
+  float betas_desired_pid;
+  float u1_equ;
+  float u2_equ;
+
+  Y->z1 = Y->alpha_e - U->alpha_desired;
+  Y->z2 = Y->beta_e - U->beta_desired;
+  Y->z3 = Y->alpha_speed_e - U->alphas_desired;
+  Y->z4 = Y->beta_speed_e - U->betas_desired;
+
+  float num1 = ((JX + JY - JZ)*sinf(Y->beta_e) -JZ*cosf(Y->beta_e))*Y->z3*Y->z4;
+  float den1 = JX*cosf(Y->beta_e) + JZ*sinf(Y->beta_e);
+  float cir1 = num1 / den1;
+  float num2 = (JZ - JX)*sinf(Y->beta_e)*cosf(Y->beta_e)*Y->z3*Y->z3;
+  float den2 = JY;
+  float cir2 = num2 / den2;
+  float star = (cosf(Y->beta_e) + sinf(Y->beta_e)) / den1;
+
+  Gimbal2D_Y.error_alpha = Gimbal2D_U.alpha_desired - Gimbal2D_Y.alpha_e;
+  Gimbal2D_Y.error_beta = Gimbal2D_U.beta_desired - Gimbal2D_Y.beta_e;
+
+  pidSetError(&Gimbal2D_P.alphaPID, Gimbal2D_Y.error_alpha);
+  alphas_desired_pid = pidUpdate(&Gimbal2D_P.alphaPID, Gimbal2D_Y.alpha_e, false);
+
+  pidSetError(&Gimbal2D_P.betaPID, Gimbal2D_Y.error_beta);
+  betas_desired_pid = pidUpdate(&Gimbal2D_P.betaPID, Gimbal2D_Y.beta_e, false);
+
+  pidSetDesired(&Gimbal2D_P.alphasPID, alphas_desired_pid);
+  u1_equ = pidUpdate(&Gimbal2D_P.alphasPID, Gimbal2D_Y.alpha_speed_e, true) ;
+
+  pidSetDesired(&Gimbal2D_P.betasPID, betas_desired_pid);
+  u2_equ = pidUpdate(&Gimbal2D_P.betasPID, Gimbal2D_Y.beta_speed_e, true);
+
+  Y->u_u1 = (u1_equ - cir1)/star; // u_u1 = tau_alpha, u_u2 = tau_beta
+  Y->u_u2 = (u2_equ - cir2)*JY;
+
+  Y->u_alpha = Y->u_u1; // For plotting only
+  Y->u_beta = Y->u_u2;
+
+  Y->Tau_x = Y->u_alpha * cosf(Y->beta_e);
+  Y->Tau_y = Y->u_beta;
+  Y->Tau_z = Y->u_alpha * sinf(Y->beta_e);
 }
 
 void Gimbal2D_controller_pwmtest()
@@ -512,7 +563,8 @@ void Gimbal2D_controller()
         break;
 
     case GIMBAL2D_CONTROLMODE_NSF:
-        Gimbal2D_controller_nsf();
+        // Gimbal2D_controller_nsf();
+        Gimbal2D_controller_pid_nsf();
         break;
 
     case GIMBAL2D_CONTROLMODE_PWMTEST:
